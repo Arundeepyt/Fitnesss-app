@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fitness & Hydration Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Neon Glow Theme */
+    body {
+      background: #0d0d0d;
+      background-size: cover;
+      background-position: center;
+      transition: background-image 1s ease-in-out;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    h1,
+    h2 {
+      text-shadow: 0 0 10px #00f7ff, 0 0 20px #00f7ff, 0 0 40px #00f7ff;
+    }
+
+    .neon-box {
+      background: rgba(20, 20, 20, 0.85);
+      border: 2px solid #00f7ff;
+      box-shadow: 0 0 15px #00f7ff, 0 0 25px #00f7ff;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .neon-input {
+      background: black;
+      border: 2px solid #ff00ff;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff inset;
+      transition: 0.3s;
+    }
+
+    .neon-input:focus {
+      outline: none;
+      box-shadow: 0 0 15px #00f7ff, 0 0 25px #ff00ff inset;
+    }
+
+    .neon-btn {
+      background: black;
+      border: 2px solid #00f7ff;
+      color: #00f7ff;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00f7ff, 0 0 30px #00f7ff;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .neon-btn:hover {
+      background: #00f7ff;
+      color: black;
+      box-shadow: 0 0 25px #00f7ff, 0 0 45px #ff00ff;
+      transform: scale(1.05);
+    }
+
+    #progressBar {
+      box-shadow: 0 0 10px #00f7ff, 0 0 20px #ff00ff;
+      transition: width 0.5s ease-in-out;
+    }
+
+    canvas {
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: 0 0 15px #ff00ff, 0 0 25px #00f7ff;
+    }
+  </style>
+</head>
+
+<body class="p-6">
+
+  <!-- Live Health Info Section -->
+  <div class="max-w-xl mx-auto neon-box rounded-2xl p-4 mb-6 text-center">
+    <h2 class="text-xl font-bold">💡 Live Health Information</h2>
+    <p id="liveTime" class="mt-2 text-lg"></p>
+    <p id="liveWeather" class="mt-1 text-md"></p>
+    <p id="healthTip" class="mt-1 italic text-gray-300"></p>
+  </div>
+
+  <!-- Main Tracker -->
+  <div class="max-w-xl mx-auto neon-box rounded-2xl p-6">
+    <h1 class="text-3xl font-bold text-center mb-6">🌌 Fitness & Hydration Tracker 🌌</h1>
+
+    <!-- Input Section -->
+    <div class="mb-4">
+      <label class="block font-medium">🌡 Body Temperature (°C)</label>
+      <input id="temperature" type="number" step="0.1" class="w-full neon-input" placeholder="Enter your temperature">
+    </div>
+
+    <div class="mb-4">
+      <label class="block font-medium">💧 Water Intake (ml)</label>
+      <input id="water" type="number" class="w-full neon-input" placeholder="Enter water intake">
+    </div>
+
+    <button onclick="logData()" class="w-full neon-btn">Log Data</button>
+
+    <!-- Progress -->
+    <div class="mt-6">
+      <h2 class="text-lg font-semibold">Daily Water Progress</h2>
+      <div class="w-full bg-gray-800 rounded-full h-4 mt-2">
+        <div id="progressBar" class="bg-blue-400 h-4 rounded-full" style="width: 0%"></div>
+      </div>
+      <p id="progressText" class="mt-2 text-gray-300">0 / 3000 ml</p>
+    </div>
+
+    <!-- Chart -->
+    <div class="mt-6">
+      <canvas id="trackerChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Daily goal
+    let dailyGoal = 3000; // ml
+    let currentIntake = 0;
+    let logHistory = JSON.parse(localStorage.getItem('logHistory')) || [];
+
+    // Chart
+    const ctx = document.getElementById('trackerChart').getContext('2d');
+    let trackerChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: logHistory.map(e => e.date),
+        datasets: [
+          {
+            label: 'Water Intake (ml)',
+            data: logHistory.map(e => e.water),
+            borderColor: '#00f7ff',
+            backgroundColor: 'rgba(0, 247, 255, 0.3)',
+            fill: true,
+            tension: 0.3
+          },
+          {
+            label: 'Temperature (°C)',
+            data: logHistory.map(e => e.temp),
+            borderColor: '#ff00ff',
+            backgroundColor: 'rgba(255, 0, 255, 0.3)',
+            fill: true,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#fff' } } },
+        scales: {
+          x: { ticks: { color: '#fff' } },
+          y: { ticks: { color: '#fff' }, beginAtZero: true }
+        }
+      }
+    });
+
+    // Log data
+    function logData() {
+      const temp = parseFloat(document.getElementById('temperature').value);
+      const water = parseInt(document.getElementById('water').value);
+      if (!temp || !water) {
+        alert('⚠ Please enter valid data');
+        return;
+      }
+
+      currentIntake += water;
+      updateProgress();
+
+      const today = new Date().toLocaleDateString();
+      logHistory.push({ date: today, water, temp });
+      localStorage.setItem('logHistory', JSON.stringify(logHistory));
+
+      trackerChart.data.labels = logHistory.map(e => e.date);
+      trackerChart.data.datasets[0].data = logHistory.map(e => e.water);
+      trackerChart.data.datasets[1].data = logHistory.map(e => e.temp);
+      trackerChart.update();
+
+      document.getElementById('temperature').value = '';
+      document.getElementById('water').value = '';
+    }
+
+    function updateProgress() {
+      let percent = Math.min((currentIntake / dailyGoal) * 100, 100);
+      document.getElementById('progressBar').style.width = percent + '%';
+      document.getElementById('progressText').innerText = `${currentIntake} / ${dailyGoal} ml`;
+    }
+
+    // Live Health Info
+    function updateLiveInfo() {
+      document.getElementById('liveTime').innerText = "⏰ " + new Date().toLocaleString();
+      let temp = (20 + Math.random() * 10).toFixed(1);
+      document.getElementById('liveWeather').innerText = `🌡 Outside Temperature: ${temp} °C`;
+
+      const tips = [
+        "💧 Drink water every 2 hours.",
+        "🚶 Take a 5 min walk every hour.",
+        "😴 Get at least 7-8 hours of sleep.",
+        "🥦 Eat more green vegetables.",
+        "🧘 Practice 10 min meditation daily."
+      ];
+      document.getElementById('healthTip').innerText = tips[Math.floor(Math.random() * tips.length)];
+    }
+    setInterval(updateLiveInfo, 1000);
+    updateLiveInfo();
+
+    // Background fitness images
+    const backgrounds = [
+      "https://images.unsplash.com/photo-1571019613576-2b22c76fd955?auto=format&fit=crop&w=1500&q=80",
+      "https://images.unsplash.com/photo-1594737625785-c07b81e69c3a?auto=format&fit=crop&w=1500&q=80",
+      "https://images.unsplash.com/photo-1558611848-73f7eb4001a1?auto=format&fit=crop&w=1500&q=80",
+      "https://images.unsplash.com/photo-1583454110552-21a0e6a17b1d?auto=format&fit=crop&w=1500&q=80"
+    ];
+    let bgIndex = 0;
+
+    function changeBackground() {
+      document.body.style.backgroundImage = `url('${backgrounds[bgIndex]}')`;
+      bgIndex = (bgIndex + 1) % backgrounds.length;
+    }
+    setInterval(changeBackground, 8000); // Change every 8 seconds
+    changeBackground();
+  </script>
+</body>
+
+</html>
