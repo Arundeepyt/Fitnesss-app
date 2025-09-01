@@ -8,7 +8,6 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* Neon Glow Theme */
     body {
       background: #0d0d0d;
       background-size: cover;
@@ -27,7 +26,6 @@
       background: rgba(20, 20, 20, 0.85);
       border: 2px solid #00f7ff;
       box-shadow: 0 0 15px #00f7ff, 0 0 25px #00f7ff;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
     .neon-input {
@@ -37,7 +35,6 @@
       padding: 10px;
       border-radius: 8px;
       box-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff inset;
-      transition: 0.3s;
     }
 
     .neon-input:focus {
@@ -55,19 +52,13 @@
       text-transform: uppercase;
       cursor: pointer;
       box-shadow: 0 0 15px #00f7ff, 0 0 30px #00f7ff;
-      transition: all 0.3s ease-in-out;
+      transition: all 0.3s;
     }
 
     .neon-btn:hover {
       background: #00f7ff;
       color: black;
-      box-shadow: 0 0 25px #00f7ff, 0 0 45px #ff00ff;
       transform: scale(1.05);
-    }
-
-    #progressBar {
-      box-shadow: 0 0 10px #00f7ff, 0 0 20px #ff00ff;
-      transition: width 0.5s ease-in-out;
     }
 
     canvas {
@@ -81,7 +72,7 @@
 
 <body class="p-6">
 
-  <!-- Live Health Info Section -->
+  <!-- Live Health Info -->
   <div class="max-w-xl mx-auto neon-box rounded-2xl p-4 mb-6 text-center">
     <h2 class="text-xl font-bold">💡 Live Health Information</h2>
     <p id="liveTime" class="mt-2 text-lg"></p>
@@ -93,7 +84,7 @@
   <div class="max-w-xl mx-auto neon-box rounded-2xl p-6">
     <h1 class="text-3xl font-bold text-center mb-6">🌌 Fitness & Hydration Tracker 🌌</h1>
 
-    <!-- Input Section -->
+    <!-- Inputs -->
     <div class="mb-4">
       <label class="block font-medium">🌡 Body Temperature (°C)</label>
       <input id="temperature" type="number" step="0.1" class="w-full neon-input" placeholder="Enter your temperature">
@@ -106,13 +97,18 @@
 
     <button onclick="logData()" class="w-full neon-btn">Log Data</button>
 
-    <!-- Progress -->
-    <div class="mt-6">
-      <h2 class="text-lg font-semibold">Daily Water Progress</h2>
-      <div class="w-full bg-gray-800 rounded-full h-4 mt-2">
-        <div id="progressBar" class="bg-blue-400 h-4 rounded-full" style="width: 0%"></div>
+    <!-- Circular Goals -->
+    <div class="grid grid-cols-2 gap-6 mt-8 text-center">
+      <div>
+        <h2 class="text-lg font-semibold">💧 Water Goal</h2>
+        <canvas id="waterCircle" width="150" height="150"></canvas>
+        <p id="progressText" class="mt-2 text-gray-300">0 / 3000 ml</p>
       </div>
-      <p id="progressText" class="mt-2 text-gray-300">0 / 3000 ml</p>
+      <div>
+        <h2 class="text-lg font-semibold">👣 Activity Goal</h2>
+        <canvas id="activityCircle" width="150" height="150"></canvas>
+        <p id="stepCounter" class="mt-2 text-gray-300">Steps: 0 / 10000</p>
+      </div>
     </div>
 
     <!-- Chart -->
@@ -122,59 +118,52 @@
   </div>
 
   <script>
-    // Daily goal
-    let dailyGoal = 3000; // ml
-    let currentIntake = 0;
+    let dailyGoal = 3000, currentIntake = 0;
+    let stepGoal = 10000, steps = 0;
     let logHistory = JSON.parse(localStorage.getItem('logHistory')) || [];
 
-    // Chart
+    // Chart.js Line Chart
     const ctx = document.getElementById('trackerChart').getContext('2d');
     let trackerChart = new Chart(ctx, {
       type: 'line',
       data: {
         labels: logHistory.map(e => e.date),
         datasets: [
-          {
-            label: 'Water Intake (ml)',
-            data: logHistory.map(e => e.water),
-            borderColor: '#00f7ff',
-            backgroundColor: 'rgba(0, 247, 255, 0.3)',
-            fill: true,
-            tension: 0.3
-          },
-          {
-            label: 'Temperature (°C)',
-            data: logHistory.map(e => e.temp),
-            borderColor: '#ff00ff',
-            backgroundColor: 'rgba(255, 0, 255, 0.3)',
-            fill: true,
-            tension: 0.3
-          }
+          { label: 'Water Intake (ml)', data: logHistory.map(e => e.water), borderColor: '#00f7ff', backgroundColor: 'rgba(0,247,255,0.3)', fill: true, tension: 0.3 },
+          { label: 'Temperature (°C)', data: logHistory.map(e => e.temp), borderColor: '#ff00ff', backgroundColor: 'rgba(255,0,255,0.3)', fill: true, tension: 0.3 }
         ]
       },
-      options: {
-        responsive: true,
-        plugins: { legend: { labels: { color: '#fff' } } },
-        scales: {
-          x: { ticks: { color: '#fff' } },
-          y: { ticks: { color: '#fff' }, beginAtZero: true }
-        }
-      }
+      options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { x: { ticks: { color: '#fff' } }, y: { ticks: { color: '#fff' }, beginAtZero: true } } }
     });
 
-    // Log data
+    // Circle Draw Function
+    function drawCircle(ctx, value, max, color) {
+      ctx.clearRect(0, 0, 150, 150);
+      let percent = Math.min(value / max, 1);
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = "#333";
+      ctx.beginPath(); ctx.arc(75, 75, 60, 0, 2 * Math.PI); ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.beginPath(); ctx.arc(75, 75, 60, -Math.PI / 2, (2 * Math.PI * percent) - Math.PI / 2); ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.font = "14px Poppins";
+      ctx.textAlign = "center";
+      ctx.fillText(Math.round(percent * 100) + "%", 75, 80);
+    }
+
+    const waterCtx = document.getElementById('waterCircle').getContext('2d');
+    const activityCtx = document.getElementById('activityCircle').getContext('2d');
+    drawCircle(waterCtx, 0, dailyGoal, "#00f7ff");
+    drawCircle(activityCtx, 0, stepGoal, "#ff00ff");
+
+    // Log Data
     function logData() {
       const temp = parseFloat(document.getElementById('temperature').value);
       const water = parseInt(document.getElementById('water').value);
-      if (!temp || !water) {
-        alert('⚠ Please enter valid data');
-        return;
-      }
+      if (!temp || !water) return alert('⚠ Please enter valid data');
 
       currentIntake += water;
-      updateProgress();
-
-      const today = new Date().toLocaleDateString();
+      let today = new Date().toLocaleDateString();
       logHistory.push({ date: today, water, temp });
       localStorage.setItem('logHistory', JSON.stringify(logHistory));
 
@@ -183,35 +172,44 @@
       trackerChart.data.datasets[1].data = logHistory.map(e => e.temp);
       trackerChart.update();
 
+      // Update water goal circle
+      drawCircle(waterCtx, currentIntake, dailyGoal, "#00f7ff");
+      document.getElementById('progressText').innerText = `${currentIntake} / ${dailyGoal} ml`;
+
       document.getElementById('temperature').value = '';
       document.getElementById('water').value = '';
     }
 
-    function updateProgress() {
-      let percent = Math.min((currentIntake / dailyGoal) * 100, 100);
-      document.getElementById('progressBar').style.width = percent + '%';
-      document.getElementById('progressText').innerText = `${currentIntake} / ${dailyGoal} ml`;
+    // Step Counter using DeviceMotion API
+    if (window.DeviceMotionEvent) {
+      let lastAccel = 0;
+      window.addEventListener("devicemotion", function (event) {
+        let acc = event.accelerationIncludingGravity;
+        if (!acc) return;
+        let magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+        if (magnitude > 12 && Date.now() - lastAccel > 500) { // threshold & debounce
+          steps++;
+          drawCircle(activityCtx, steps, stepGoal, "#ff00ff");
+          document.getElementById('stepCounter').innerText = `Steps: ${steps} / ${stepGoal}`;
+          lastAccel = Date.now();
+        }
+      });
+    } else {
+      alert("🚫 Step tracking not supported on this device/browser.");
     }
 
-    // Live Health Info
+    // Live Info
     function updateLiveInfo() {
       document.getElementById('liveTime').innerText = "⏰ " + new Date().toLocaleString();
       let temp = (20 + Math.random() * 10).toFixed(1);
       document.getElementById('liveWeather').innerText = `🌡 Outside Temperature: ${temp} °C`;
-
-      const tips = [
-        "💧 Drink water every 2 hours.",
-        "🚶 Take a 5 min walk every hour.",
-        "😴 Get at least 7-8 hours of sleep.",
-        "🥦 Eat more green vegetables.",
-        "🧘 Practice 10 min meditation daily."
-      ];
+      const tips = ["💧 Drink water every 2 hours.", "🚶 Take a 5 min walk every hour.", "😴 Sleep 7-8 hrs.", "🥦 Eat greens daily.", "🧘 Do 10 min meditation."];
       document.getElementById('healthTip').innerText = tips[Math.floor(Math.random() * tips.length)];
     }
     setInterval(updateLiveInfo, 1000);
     updateLiveInfo();
 
-    // Background fitness images
+    // Background changer
     const backgrounds = [
       "https://images.unsplash.com/photo-1571019613576-2b22c76fd955?auto=format&fit=crop&w=1500&q=80",
       "https://images.unsplash.com/photo-1594737625785-c07b81e69c3a?auto=format&fit=crop&w=1500&q=80",
@@ -219,13 +217,10 @@
       "https://images.unsplash.com/photo-1583454110552-21a0e6a17b1d?auto=format&fit=crop&w=1500&q=80"
     ];
     let bgIndex = 0;
-
-    function changeBackground() {
+    setInterval(() => {
       document.body.style.backgroundImage = `url('${backgrounds[bgIndex]}')`;
       bgIndex = (bgIndex + 1) % backgrounds.length;
-    }
-    setInterval(changeBackground, 8000); // Change every 8 seconds
-    changeBackground();
+    }, 8000);
   </script>
 </body>
 
